@@ -13,7 +13,9 @@ word_counter = Counter()
 acceptable_word_freq = 5
 # The order is important since later on we generate the empty tensor with torch.zeros which means index 0 should be pad 
 add_word = ['PAD', 'START', 'END', 'UNKOWN']
+# The File Which the dictionary will be generated
 dict_path = "dictionary.pkl"
+
 # file names
 # caps_fname = "captions.json"
 # catsinfo_fname = "categories_info.json"

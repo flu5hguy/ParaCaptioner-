@@ -8,7 +8,10 @@ from PIL import Image
 import json
 import re
 
+# the length of file names in coco image, the id will be prefixed by 
+# leading zeros to reach length of $name_len
 name_len = 12
+imgs_extension = ".jpg"
 
 class CocoDataset(data.Dataset):
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
@@ -32,7 +35,7 @@ class CocoDataset(data.Dataset):
         caption = self.data_cap[index]['caption']
         img_id = self.data_cap[index]['image_id']
         # Following is for getting the imgname from it's id
-        path = img_id.zfill(name_len)
+        path = str(img_id).zfill(name_len) + imgs_extension
 
         image = Image.open(os.path.join(self.root, path)).convert('RGB')
         if self.transform is not None:
@@ -42,9 +45,9 @@ class CocoDataset(data.Dataset):
         words = re.findall(r'\w+', str(caption).lower())
 
         caption = []
-        caption.append(self.word2idx('START'))
-        caption.extend([self.word2idx(word) for word in words])
-        caption.append(self.word2idx('END'))
+        caption.append(self.word2idx['START'])
+        caption.extend([self.word2idx[word] for word in words if word in self.word2idx])
+        caption.append(self.word2idx['END'])
         target = torch.Tensor(caption)
         return image, target
 

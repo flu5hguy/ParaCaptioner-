@@ -7,7 +7,7 @@ import cv2 as cv
 import numpy as np 
 from torchvision import * 
 
-
+score_threshold = 0.6
 # class FeatureExtractor(nn.Module):
 #     def __init__(self):
 #         super(FeatureExtractor, self).__init__()
@@ -15,11 +15,7 @@ from torchvision import *
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') 
 
 
-def drawer(img, label, bbox, score): 
-    # First move from cuda to cpu then convert to numpy 
-    bbox_np = bbox.cpu().numpy() 
-    label = label.cpu().numpy() 
-
+def drawer(img, label, bbox_np, score): 
     color = (0,255,0)
     # Extracting the points (note that the opencv accepts points as tuple)
     pts1 = tuple((bbox_np[:2]).astype(np.int))
@@ -58,8 +54,20 @@ with torch.no_grad() :
 
     print(preds) 
 
+    # Iterate over predictions if multiple images are given to the predictor
     for pred in preds: 
-        for bbox, label, score in zip(pred['boxes'], pred['labels'], pred['scores']) : 
+        # we should check if we use cuda ...
+        # Moving the tensors from GPU to RAM  
+        bboxes = pred['boxes'].cpu().numpy() 
+        labels = pred['labels'].cpu().numpy() 
+        scores = pred['scores'].cpu().numpy()
+        
+        # Iterate over results of the prediction for single image. 
+        for bbox, label, score in zip(bboxes, labels, scores) : 
+            if(score < score_threshold):
+                print("We're Done Drawing High Score Objects ...") 
+                break 
+            
             print("#### ")
             print(label) 
             print(bbox) 

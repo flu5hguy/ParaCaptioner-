@@ -13,6 +13,57 @@ import re
 name_len = 12
 imgs_extension = ".jpg"
 
+# The Default colate function is sufficient...
+class CoCoDatasetLabeler(data.Dataset):
+    def __init__(self, root, data_label, data_images, num_labels, transform=None):
+        self.root = root 
+        self.data_label = data_label 
+        self.data_images = data_images
+        self.num_labels = num_labels
+        self.transform = transform
+
+    def __getitem__(self, index):
+        img_name = self.data_images[index]['file_name']
+        img_id = self.data_images[index]['id']
+
+        image = Image.open(os.path.join(self.root, img_name)).convert('RGB')
+        if self.transform is not None:
+            image = self.transform(image)
+
+        # Finidng labels corresponding to image id
+        labels = [label['category_id'] for iter, label in enumerate(self.data_label) if label['image_id'] == img_id]
+
+        label_multi_hot = torch.zeros(self.num_labels)
+        for idx in labels:
+            label_multi_hot[idx] = 1.
+        
+        return image, label_multi_hot
+
+        
+    def __len__(self):
+        return len(self.data_images) 
+
+def data_loader_labeler(
+    root, 
+    data_label, 
+    data_images, 
+    num_labels, 
+    transform, 
+    batch_size,
+    shuffle,
+    num_workers):
+    coco_label = CoCoDatasetLabeler(root=root, data_label=data_label, data_images=data_images, num_labels=num_labels, transform=transform)
+
+    data_loader = torch.utils.data.DataLoader(
+         dataset=coco_label,
+         batch_size=batch_size, 
+         shuffle=shuffle, 
+         num_workers=num_workers,
+         pin_memory=True)
+
+    return data_loader 
+
+
 class CocoDataset(data.Dataset):
     """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
     def __init__(self, root, data_cap, dictionary, transform=None):

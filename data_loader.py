@@ -9,6 +9,7 @@ import re
 import sys
 import pickle
 
+# Will be used in generating the dictionary, to neglect words which their frequency is less that @acceptable_word_freq 
 word_counter = Counter() 
 acceptable_word_freq = 5
 # The order is important since later on we generate the empty tensor with torch.zeros which means index 0 should be pad 
@@ -25,6 +26,9 @@ imgsinfo_fname = "additional_images_info.json"
 label_fname = "additional_labels.json"
 
 catsinfo_fname = "categories_info.json"
+
+# the labels for dataset will be saved in the following file
+label_save_file = "labels.txt"
 
 # confirm existance of data directory 
 root_data_path = "./data" 
@@ -46,6 +50,17 @@ try:
 except: 
     print("Something went wrong during loading of files")
 
+# getting the total number of labels, later will be required for the multi-hot codding. 
+print("Initializing Label Processing ...")
+labels = set() 
+for iter, label in enumerate(data_label):
+    labels.add(label['category_id'])
+    if iter % 10000 == 0:
+        print("Labels [{}/{}]:".format(iter, len(data_label)))
+
+#total_label_numbers = len(labels)
+total_label_numbers = 91
+print("Label Processing Finished.")
 
 def gen_dictionary(data_caps, len_caps):
     
@@ -77,18 +92,19 @@ def gen_dictionary(data_caps, len_caps):
     with open(dict_path, 'wb') as file:
         pickle.dump(dictionary, file)
     
-    print("Maximum Words in a Caption is {}".format(max_len))
+    print("Maximum Number of Words in a Caption is {}".format(max_len))
     print("Dictionary Generation Finished.") ; 
     
 
-
+# This function will show a sample from provided dataset.
 def data_sampler(): 
     # length of files
     len_imgs = len(data_imgs) 
     len_caps = len(data_caps) 
+    len_labels = len(data_label)
 
-    print("Lengths of Captions is: {}\nLength of Image Info is: {}\nLenght of labels is: {}\nLenght of Category info is: {}"
-    .format(len_caps, len_imgs, len(data_label), len(data_catsinfo)))
+    print("Lengths of Captions is: {}\nLength of Image Info is: {}\nLenght of labels is: {}\nLenght of Category info is: {}\n\n"
+    .format(len_caps, len_imgs, len_labels, len(data_catsinfo), len(data_label)))
     
     # generating dictionary
     gen_dictionary(data_caps, len_caps)
@@ -117,6 +133,7 @@ def data_sampler():
 
 
 if __name__ == '__main__': 
+
     data_sampler()
 
     with open(dict_path, 'rb') as file: 

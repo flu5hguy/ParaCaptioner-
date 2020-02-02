@@ -4,32 +4,92 @@ import torch.nn as nn
 import numpy as np
 import os
 import pickle
-from dataset import get_loader 
-from models import EncoderCNN, DecoderRNN
+from dataset import get_loader, data_loader_labeler
+from models import EncoderCNN, DecoderRNN, LabelClassifier
 from torch.nn.utils.rnn import pack_padded_sequence
 from torchvision import transforms
 from data_loader import * 
 from PIL import Image
 
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 NUM_EPOCHS = 5
 LEARN_RATE = 0.001
 num_layers = 1
 lstm_output_size = 512 
 word_embedding_size = 256
 input_resnet_size = 256
+label_classifier_size = 256
 path_trained_model = os.path.join(root_data_path, "trained_model")
 
 # Path where we save the trained models.
 caption_gen_path = "captioner"
 feature_gen_path = "feature-extractor-" 
+label_gen_path = "label-generator-"
 model_extension = ".ckpt"
 
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def train():
+# Function which Train the Label Generator
+def train_labelclassifier():
+    print("Training the LabelClassifier ...")
+    # Create model directory
+    if not os.path.exists(path_trained_model):
+        os.makedirs(path_trained_model)
+    
+    # Image preprocessing, first resize the input image then do normalization for the pretrained resnet
+    transform = transforms.Compose([ 
+        transforms.Resize((input_resnet_size,input_resnet_size), interpolation=Image.ANTIALIAS),
+        transforms.RandomCrop(224),
+        transforms.RandomHorizontalFlip(), 
+        transforms.ToTensor(), 
+        transforms.Normalize((0.485, 0.456, 0.406), 
+                             (0.229, 0.224, 0.225))])
+
+    data_loader = data_loader_labeler(
+        imgs_path, 
+        data_label, 
+        data_imgs, 
+        total_label_numbers, 
+        transform,
+        BATCH_SIZE,
+        True,
+        2)
+
+    # Build Model
+    model = LabelClassifier(label_classifier_size, total_label_numbers).to(device)
+
+    # Model Criterion
+    # BinaryCrossEntropy with Sigmoid
+    criterion = nn.BCELoss()
+    params = list(model.linear.parameters()) + list(model.linear_label.parameters()) \
+           + list(model.bn.parameters())
+    optimizer = torch.optim.Adam(params, lr=LEARN_RATE)
+
+    # Begin Training
+    total_steps = len(data_loader)
+    for epoch in range(NUM_EPOCHS):
+        for i, (images, labels) in enumerate(data_loader):
+            images = images.to(device)
+            labels = labels.to(device)
+
+            output = model(images)
+            loss = criterion(output, labels)
+    
+            model.zero_grad() 
+            loss.backward()
+            optimizer.step()
+
+            if i % 20 == 0:
+                print('Epoch [{}/{}], Step[{}/{}], Loss: {:.4f}'
+                        .format(epoch, NUM_EPOCHS, i, total_steps, loss.item()))
+
+    torch.save(model.state_dict(), os.path.join(path_trained_model, '{}.ckpt'.format(label_gen_path)))
+    
+# Function for Training the Captioner
+def train_captioner():
+    print("Training The Capitoner ... ") 
     # Create model directory
     if not os.path.exists(path_trained_model):
         os.makedirs(path_trained_model)
@@ -65,7 +125,6 @@ def train():
     total_step = len(data_loader)
     for epoch in range(NUM_EPOCHS):
         for i, (images, captions, lengths) in enumerate(data_loader):
-            
             # Set mini-batch dataset
             images = images.to(device)
             captions = captions.to(device)
@@ -81,7 +140,7 @@ def train():
             optimizer.step()
 
             # Print log info
-            if i % 100 == 0:
+            if i % 20 == 0:
                 print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Perplexity: {:5.4f}'
                       .format(epoch, NUM_EPOCHS, i, total_step, loss.item(), np.exp(loss.item()))) 
                 
@@ -92,27 +151,5 @@ def train():
             path_trained_model, 'feature-extractor-{}.ckpt'.format(epoch+1)))
 
 if __name__ == '__main__':
-    train() 
-
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('--model_path', type=str, default='models/' , help='path for saving trained models')
-#     parser.add_argument('--crop_size', type=int, default=224 , help='size for randomly cropping images')
-#     parser.add_argument('--vocab_path', type=str, default='data/vocab.pkl', help='path for vocabulary wrapper')
-#     parser.add_argument('--image_dir', type=str, default='data/resized2014', help='directory for resized images')
-#     parser.add_argument('--caption_path', type=str, default='data/annotations/captions_train2014.json', help='path for train annotation json file')
-#     parser.add_argument('--log_step', type=int , default=10, help='step size for prining log info')
-#     parser.add_argument('--save_step', type=int , default=1000, help='step size for saving trained models')
-    
-#     # Model parameters
-#     parser.add_argument('--embed_size', type=int , default=256, help='dimension of word embedding vectors')
-#     parser.add_argument('--hidden_size', type=int , default=512, help='dimension of lstm hidden states')
-#     parser.add_argument('--num_layers', type=int , default=1, help='number of layers in lstm')
-    
-#     parser.add_argument('--num_epochs', type=int, default=5)
-#     parser.add_argument('--batch_size', type=int, default=128)
-#     parser.add_argument('--num_workers', type=int, default=2)
-#     parser.add_argument('--learning_rate', type=float, default=0.001)
-#     args = parser.parse_args()
-#     print(args)
-#     main(args)
+    #train_captioner()
+    train_labelclassifier() 

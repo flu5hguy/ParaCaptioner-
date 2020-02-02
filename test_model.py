@@ -4,16 +4,30 @@ import numpy as np
 import pickle 
 import os
 from torchvision import transforms 
-from models import EncoderCNN, DecoderRNN
+from models import EncoderCNN, DecoderRNN, LabelClassifier
 from PIL import Image
-from data_loader import dict_path
+from data_loader import dict_path, total_label_numbers
 from model_train import (feature_gen_path, caption_gen_path, num_layers,
      model_extension, NUM_EPOCHS, path_trained_model, lstm_output_size,
-     word_embedding_size, input_resnet_size)
+     word_embedding_size, input_resnet_size, label_classifier_size, label_gen_path)
 import cv2 as cv
 
+labeler_threshold = 0.5
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Image preprocessing(resizeing and normalization)
+transform = transforms.Compose([
+    transforms.Resize((224,224), Image.LANCZOS),
+    transforms.ToTensor(), 
+    transforms.Normalize((0.485, 0.456, 0.406), 
+                            (0.229, 0.224, 0.225))])
+
+# Prepare an image
+image_path = "./data/images/val2017/000000001584.jpg"
+#image_path = "./data/my_test_images/4.jpg"
+image = Image.open(image_path) 
+image_tensor = transform(image).unsqueeze(0).to(device)
 
 def load_image(image_path, transform=None):
     image = Image.open(image_path)
@@ -24,14 +38,19 @@ def load_image(image_path, transform=None):
     
     return image
 
-def test():
-    # Image preprocessing(resizeing and normalization)
-    transform = transforms.Compose([
-        transforms.Resize((224,224), Image.LANCZOS),
-        transforms.ToTensor(), 
-        transforms.Normalize((0.485, 0.456, 0.406), 
-                             (0.229, 0.224, 0.225))])
-    
+def test_labler():
+    with torch.no_grad():
+        model = LabelClassifier(label_classifier_size, total_label_numbers).eval().to(device)
+        
+        model_path = os.path.join(path_trained_model, label_gen_path + model_extension)
+        # loading model parameters
+        model.load_state_dict(torch.load(model_path))
+
+        output = model(image_tensor)
+        output = (output>labeler_threshold).int()
+        print(output)
+
+def test():   
     # Load vocabulary wrapper
     with open(dict_path, 'rb') as file:
         dictionary = pickle.load(file)
@@ -49,12 +68,6 @@ def test():
     print("Feature Extractor Model Loaded Successfully")
     decoder.load_state_dict(torch.load(decoder_model_path))
     print("Caption Generator Loaded Successfully") 
-
-    # Prepare an image
-    #image_path = "./data/images/val2017/000000001584.jpg"
-    image_path = "./data/my_test_images/4.jpg"
-    image = Image.open(image_path) 
-    image_tensor = transform(image).unsqueeze(0).to(device)
     
     # Generate an caption from the image
     feature = encoder(image_tensor)
@@ -72,7 +85,7 @@ def test():
     sentence = ' '.join(sampled_caption)
     
     # Print out the image and the generated caption
-    print (sentence)
+    print ("Caption: ", sentence)
     image = cv.imread(image_path, cv.IMREAD_COLOR)
     window_name = "Sample Image with Caption as Overlay" 
     cv.imshow(window_name, image)
@@ -80,4 +93,5 @@ def test():
     cv.waitKey(0)
     
 if __name__ == '__main__':
-    test()
+    #test()
+    test_labler()

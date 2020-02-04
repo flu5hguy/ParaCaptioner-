@@ -2,3 +2,7 @@ data
 pdfs
 image_captioning
 dictionary.pkl
+labels.txt
+test.txt
+test.py
+captions.txt

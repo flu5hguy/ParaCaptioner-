@@ -29,7 +29,6 @@ class EncoderCNN(nn.Module):
 
 
 # Following Class will be  used for label classification
-# 
 class LabelClassifier(EncoderCNN):
     def __init__(self, embed_size, label_number):
         super().__init__(embed_size)
@@ -39,7 +38,6 @@ class LabelClassifier(EncoderCNN):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, images):
-        """Extract feature vectors from input images."""
         with torch.no_grad():
             features = self.resnet(images)
         features = features.reshape(features.size(0), -1)
@@ -51,7 +49,6 @@ class LabelClassifier(EncoderCNN):
 
         
     
-
 
 class DecoderRNN(nn.Module):
     def __init__(self, embed_size, hidden_size, dict_size, num_layers, max_seq_length=50):

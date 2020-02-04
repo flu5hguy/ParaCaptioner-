@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import numpy as np
@@ -12,7 +11,8 @@ from data_loader import *
 from PIL import Image
 
 BATCH_SIZE = 64
-NUM_EPOCHS = 5
+NUM_EPOCHS = 10
+NUM_EPOCHS_LABLER = 10
 LEARN_RATE = 0.001
 num_layers = 1
 lstm_output_size = 512 
@@ -64,12 +64,12 @@ def train_labelclassifier():
     # BinaryCrossEntropy with Sigmoid
     criterion = nn.BCELoss()
     params = list(model.linear.parameters()) + list(model.linear_label.parameters()) \
-           + list(model.bn.parameters())
+           + list(model.bn.parameters()) + list(model.resnet.avgpool.parameters())
     optimizer = torch.optim.Adam(params, lr=LEARN_RATE)
 
     # Begin Training
     total_steps = len(data_loader)
-    for epoch in range(NUM_EPOCHS):
+    for epoch in range(NUM_EPOCHS_LABLER):
         for i, (images, labels) in enumerate(data_loader):
             images = images.to(device)
             labels = labels.to(device)
@@ -150,6 +150,11 @@ def train_captioner():
         torch.save(encoder.state_dict(), os.path.join(
             path_trained_model, 'feature-extractor-{}.ckpt'.format(epoch+1)))
 
+
+### Main Call 
 if __name__ == '__main__':
-    #train_captioner()
-    train_labelclassifier() 
+    # Train the Captioner Network
+    train_captioner()
+
+    # Train the Label Classifier
+    #train_labelclassifier() 

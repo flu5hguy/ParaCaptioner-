@@ -27,9 +27,6 @@ label_fname = "additional_labels.json"
 
 catsinfo_fname = "categories_info.json"
 
-# the labels for dataset will be saved in the following file
-label_save_file = "labels.txt"
-
 # confirm existance of data directory 
 root_data_path = "./data" 
 #imgs_path = os.path.join(root_data_path, "images/val2017")  

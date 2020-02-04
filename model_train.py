@@ -4,18 +4,21 @@ import numpy as np
 import os
 import pickle
 from dataset import get_loader, data_loader_labeler
-from models import EncoderCNN, DecoderRNN, LabelClassifier
+from models import EncoderCNN, DecoderRNN, LabelClassifier, AttnDecoderRNN
 from torch.nn.utils.rnn import pack_padded_sequence
 from torchvision import transforms
 from data_loader import * 
 from PIL import Image
 
 BATCH_SIZE = 64
+# Training Epochs for Encoder
 NUM_EPOCHS = 10
+# Number of Training Epochs of Labler
 NUM_EPOCHS_LABLER = 10
 LEARN_RATE = 0.001
 num_layers = 1
 lstm_output_size = 512 
+
 word_embedding_size = 256
 input_resnet_size = 256
 label_classifier_size = 256
@@ -88,7 +91,7 @@ def train_labelclassifier():
 
     torch.save(model.state_dict(), os.path.join(path_trained_model, '{}.ckpt'.format(label_gen_path)))
     
-# Function for Training the Captioner
+# Function for Training the Captioner Without Attention
 def train_captioner():
     print("Training The Capitoner ... ") 
     # Create model directory
@@ -104,7 +107,7 @@ def train_captioner():
         transforms.Normalize((0.485, 0.456, 0.406), 
                              (0.229, 0.224, 0.225))])
     
-    # Loading pickle dictionary
+    # Loading  Dictionary (as binary data)
     with open(dict_path, 'rb') as file:
         dictionary = pickle.load(file)
     
@@ -152,6 +155,8 @@ def train_captioner():
             path_trained_model, 'feature-extractor-{}.ckpt'.format(epoch+1)))
 
 
+
+# Function for Training the Attention Based Captioner
 def train_attention_captioner():
     print("Training The Attention Capitoner ... ") 
     # Create model directory
@@ -175,6 +180,37 @@ def train_attention_captioner():
     data_loader = get_loader(imgs_path, data_caps, dictionary, 
                              transform, BATCH_SIZE,
                              shuffle=True, num_workers=2) 
+
+    # Building the Models
+    encoder = EncoderCNN(word_embedding_size).to(device)
+    attn_decoder = AttnDecoderRNN(word_embedding_size, len(dictionary[0]))
+
+    # Loss and optimizer
+    criterion = nn.CrossEntropyLoss()
+    params = list(attn_decoder.parameters()) + list(encoder.linear.parameters()) + list(encoder.bn.parameters())
+    optimizer = torch.optim.Adam(params, lr=LEARN_RATE)
+
+    word2idx = dictionary[0]
+    # Initiazling the decoder hidden and output
+    decoder_input = torch.tensor([[word2idx['START']]]).to(device)
+    decoder_hidden = torch.zeros(word_embedding_size).to(device)
+
+    total_steps = len(data_loader)
+    for epcoh in range(NUM_EPOCHS):
+        for i, (images, captions, lengths) in enumerate(data_loader):
+
+            print(images.Size, captions.Size, lengths.Size)
+
+            # Set mini-batch dataset
+            images = images.to(device)
+            captions = captions.to(device)
+            targets = pack_padded_sequence(captions, lengths, batch_first=True)[0]
+
+            features = encoder(images)
+            decoder_output, decoder_hidden, attn_weights = attn_decoder(decoder_input, decoder_hidden, features)
+
+
+
 
 
 ### Main Call 

@@ -65,16 +65,8 @@ def data_loader_labeler(
 
 
 class CocoDataset(data.Dataset):
-    """COCO Custom Dataset compatible with torch.utils.data.DataLoader."""
     def __init__(self, root, data_cap, dictionary, transform=None):
-        """Set the path for images, captions and vocabulary wrapper.
-        
-        Args:
-            root: image directory.
-            json: coco annotation file path.
-            vocab: vocabulary wrapper.
-            transform: image transformer.
-        """
+
         self.root = root
         self.word2idx = dictionary[0]
         self.idx2word = dictionary[1]
@@ -92,7 +84,8 @@ class CocoDataset(data.Dataset):
         if self.transform is not None:
             image = self.transform(image)
 
-        # Convert caption (string) to word idxs.
+        # Convert caption (string) to word idxs Plus some preprocessing using 
+        # Regular Expression and Later Converting them to Lower-Case.
         words = re.findall(r'\w+', str(caption).lower())
 
         caption = []

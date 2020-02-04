@@ -152,7 +152,7 @@ def test_labler():
 
 
 
-def test_captioner():   
+def test_captioner(show_images=False):   
     # Load vocabulary wrapper
     with open(dict_path, 'rb') as file:
         dictionary = pickle.load(file)
@@ -201,11 +201,13 @@ def test_captioner():
 
         # Print out the image and the generated caption
         print ("Caption: ", sentence)
-        image = cv.imread(img_path, cv.IMREAD_COLOR)
-        window_name = "Sample Image with Caption as Overlay" 
-        cv.imshow(window_name, image)
-        cv.displayOverlay(window_name, sentence)
-        cv.waitKey(0)
+
+        if show_images:
+            image = cv.imread(img_path, cv.IMREAD_COLOR)
+            window_name = "Sample Image with Caption as Overlay" 
+            cv.imshow(window_name, image)
+            cv.displayOverlay(window_name, sentence)
+            cv.waitKey(0)
 
         if iter == 10:
             return  

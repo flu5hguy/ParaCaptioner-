@@ -23,6 +23,7 @@ path_trained_model = os.path.join(root_data_path, "trained_model")
 
 # Path where we save the trained models.
 caption_gen_path = "captioner"
+attention_caption_gen_path = "attn_captioner"
 feature_gen_path = "feature-extractor-" 
 label_gen_path = "label-generator-"
 model_extension = ".ckpt"
@@ -141,8 +142,8 @@ def train_captioner():
 
             # Print log info
             if i % 20 == 0:
-                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Perplexity: {:5.4f}'
-                      .format(epoch, NUM_EPOCHS, i, total_step, loss.item(), np.exp(loss.item()))) 
+                print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
+                      .format(epoch, NUM_EPOCHS, i, total_step, loss.item())) 
                 
         # Sace model after each epoch ... 
         torch.save(decoder.state_dict(), os.path.join(
@@ -151,10 +152,38 @@ def train_captioner():
             path_trained_model, 'feature-extractor-{}.ckpt'.format(epoch+1)))
 
 
+def train_attention_captioner():
+    print("Training The Attention Capitoner ... ") 
+    # Create model directory
+    if not os.path.exists(path_trained_model):
+        os.makedirs(path_trained_model)
+    
+    # Image preprocessing, first resize the input image then do normalization for the pretrained resnet
+    transform = transforms.Compose([ 
+        transforms.Resize((input_resnet_size,input_resnet_size), interpolation=Image.ANTIALIAS),
+        transforms.RandomCrop(224),
+        transforms.RandomHorizontalFlip(), 
+        transforms.ToTensor(), 
+        transforms.Normalize((0.485, 0.456, 0.406), 
+                             (0.229, 0.224, 0.225))])
+    
+    # Loading pickle dictionary
+    with open(dict_path, 'rb') as file:
+        dictionary = pickle.load(file)
+    
+    # Build data loader
+    data_loader = get_loader(imgs_path, data_caps, dictionary, 
+                             transform, BATCH_SIZE,
+                             shuffle=True, num_workers=2) 
+
+
 ### Main Call 
 if __name__ == '__main__':
     # Train the Captioner Network
     train_captioner()
+    
+    # Trian the Captioner Network With Attention
+    train_attention_captioner()
 
     # Train the Label Classifier
     #train_labelclassifier() 
